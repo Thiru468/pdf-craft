@@ -2,14 +2,6 @@ name: Convert Debug APK to Signed Release
 
 on:
   workflow_dispatch:
-    inputs:
-      apk_url:
-        description: 'Direct Download URL of Debug APK'
-        required: true
-      admob_app_id:
-        description: 'AdMob App ID (e.g. ca-app-pub-3940256099942544~3347511713)'
-        required: false
-        default: 'ca-app-pub-3940256099942544~3347511713'
 
 jobs:
   sign-apk:
@@ -25,43 +17,29 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Latest Apktool (2.11.1)
+      - name: Install Latest Apktool
         run: |
           sudo wget -q https://githubusercontent.com -O /usr/local/bin/apktool
           sudo wget -q https://github.com -O /usr/local/bin/apktool.jar
           sudo chmod +x /usr/local/bin/apktool
 
-      - name: Download Debug APK
-        run: |
-          curl -L "${{ github.event.inputs.apk_url }}" -o input.apk
-
       - name: Decompile APK
-        run: |
-          apktool d input.apk -o decoded -f
+        run: apktool d input.apk -o decoded -f
 
-      - name: Remove Debuggable Flag & Add AdMob App ID
-        run: |
-          sed -i 's/android:debuggable="true"//g' decoded/AndroidManifest.xml
-          if ! grep -q "com.google.android.gms.ads.APPLICATION_ID" decoded/AndroidManifest.xml; then
-            sed -i 's/<\/application>/<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="${{ github.event.inputs.admob_app_id }}"\/><\/application>/' decoded/AndroidManifest.xml
-          fi
+      - name: Remove Debuggable Flag
+        run: sed -i 's/android:debuggable="true"//g' decoded/AndroidManifest.xml
 
-      - name: Rebuild APK with AAPT2
-        run: |
-          apktool b decoded -o unsigned.apk --use-aapt2
+      - name: Rebuild APK
+        run: apktool b decoded -o unsigned.apk --use-aapt2
 
-      - name: Align APK (zipalign)
+      - name: Align and Sign APK
         run: |
           BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
           $BUILD_TOOLS/zipalign -v -p 4 unsigned.apk aligned.apk
-
-      - name: Generate Release Keystore & Sign APK
-        run: |
           keytool -genkey -v -keystore release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key -storepass android123 -keypass android123 -dname "CN=App, OU=Dev, O=Org, L=City, S=State, C=IN"
-          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
           $BUILD_TOOLS/apksigner sign --ks release-key.jks --ks-key-alias my-key --ks-pass pass:android123 --key-pass pass:android123 --out signed-release.apk aligned.apk
 
-      - name: Upload Signed Release APK & Keystore
+      - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
           name: signed-release-output
