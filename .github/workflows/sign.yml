@@ -6,10 +6,14 @@ on:
 jobs:
   sign-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Download Debug APK from Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -L "https://github.com" -o input.apk
+          gh release download --repo Thiru468/pdf-craft --pattern "input.apk"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
