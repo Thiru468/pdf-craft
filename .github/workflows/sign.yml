@@ -17,11 +17,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Latest Apktool
-        run: |
-          sudo wget -q https://githubusercontent.com -O /usr/local/bin/apktool
-          sudo wget -q https://github.com -O /usr/local/bin/apktool.jar
-          sudo chmod +x /usr/local/bin/apktool
+      - name: Install Apktool
+        run: sudo apt-get update && sudo apt-get install -y apktool
 
       - name: Decompile APK
         run: apktool d input.apk -o decoded -f
@@ -29,8 +26,10 @@ jobs:
       - name: Remove Debuggable Flag
         run: sed -i 's/android:debuggable="true"//g' decoded/AndroidManifest.xml
 
-      - name: Rebuild APK
-        run: apktool b decoded -o unsigned.apk --use-aapt2
+      - name: Rebuild APK with AAPT2
+        run: |
+          AAPT2=$(find $ANDROID_HOME/build-tools -name "aapt2" | tail -n 1)
+          apktool b decoded -o unsigned.apk --use-aapt2 --aapt "$AAPT2"
 
       - name: Align and Sign APK
         run: |
