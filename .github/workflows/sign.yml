@@ -68,4 +68,3 @@ jobs:
           path: |
             signed-release.apk
             release-key.jks
-
